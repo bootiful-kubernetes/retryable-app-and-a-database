@@ -1,6 +1,6 @@
-# Build the Podbean Client
+# Build Retryable Application
 
-name: API
+name: Retryable Application
 
 
 env:
