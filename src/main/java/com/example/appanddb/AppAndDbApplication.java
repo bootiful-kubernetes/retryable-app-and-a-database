@@ -14,7 +14,6 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.ApplicationListener;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.EnableAspectJAutoProxy;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -33,7 +32,7 @@ import java.util.Collections;
 @Log4j2
 @EnableRetry
 @RestController
-@EnableAspectJAutoProxy(proxyTargetClass = true)
+//@EnableAspectJAutoProxy(proxyTargetClass = true)
 @SpringBootApplication
 public class AppAndDbApplication {
 
@@ -43,6 +42,7 @@ public class AppAndDbApplication {
 
 	@Bean
 	RetryTemplate retryTemplate() {
+
 		var retryTemplate = new RetryTemplate();
 
 		var retryPolicy = new SimpleRetryPolicy(10, Collections.singletonMap(Exception.class, true), true);
@@ -51,7 +51,7 @@ public class AppAndDbApplication {
 		var backOffPolicy = new ExponentialRandomBackOffPolicy();
 		backOffPolicy.setInitialInterval(1000 * 10);
 		backOffPolicy.setMultiplier(2.7);
-		backOffPolicy.setSleeper( new ThreadWaitSleeper());
+		backOffPolicy.setSleeper(new ThreadWaitSleeper());
 		backOffPolicy.setMaxInterval(1000 * 60 * 3);
 
 		retryTemplate.setBackOffPolicy(backOffPolicy);
