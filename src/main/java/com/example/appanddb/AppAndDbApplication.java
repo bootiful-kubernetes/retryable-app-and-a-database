@@ -1,13 +1,11 @@
 package com.example.appanddb;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import lombok.RequiredArgsConstructor;
+import lombok.*;
 import lombok.extern.log4j.Log4j2;
 import org.aopalliance.intercept.MethodInterceptor;
 import org.springframework.aop.framework.ProxyFactoryBean;
 import org.springframework.beans.BeansException;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -16,6 +14,7 @@ import org.springframework.context.ApplicationListener;
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
+import org.springframework.core.io.Resource;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.retry.RetryCallback;
 import org.springframework.retry.annotation.EnableRetry;
@@ -24,10 +23,15 @@ import org.springframework.retry.backoff.ThreadWaitSleeper;
 import org.springframework.retry.policy.SimpleRetryPolicy;
 import org.springframework.retry.support.RetryTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.sql.DataSource;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
+import java.util.stream.Collectors;
 
 @Log4j2
 @EnableRetry
@@ -59,11 +63,36 @@ public class AppAndDbApplication {
 		return retryTemplate;
 	}
 
+	@SneakyThrows
+	private String stringFromResource(Resource resource) {
+		try (var r = new BufferedReader(new InputStreamReader(resource.getInputStream(), StandardCharsets.UTF_8))) {
+			return r.lines().collect(Collectors.joining());
+		}
+	}
+
+
 	@Bean
-	ApplicationListener<ApplicationReadyEvent> listener(JdbcTemplate template) {
-		return event -> template
-			.query("select * from customer", (resultSet, i) -> new Customer(resultSet.getInt("id"), resultSet.getString("name")))
-			.forEach(System.out::println);
+	ApplicationListener<ApplicationReadyEvent> listener(
+		@Value("classpath:/schema.sql") Resource sqlFile,
+		TransactionTemplate transactionTemplate,
+		JdbcTemplate jdbcTemplate) {
+		return event -> {
+
+			jdbcTemplate.execute(stringFromResource(sqlFile));
+
+			transactionTemplate.execute(transactionStatus -> {
+
+				for (var name : "Tammie,Kimly,Josh".split(","))
+					jdbcTemplate.update("insert into customer(name) values(?)", name);
+
+				jdbcTemplate
+					.query("select * from customer", (resultSet, i) -> new Customer(resultSet.getInt("id"), resultSet.getString("name")))
+					.forEach(System.out::println);
+
+				return null;
+			});
+
+		};
 	}
 
 
